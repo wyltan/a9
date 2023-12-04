@@ -2,6 +2,7 @@
 import math, os, re
 from typing import Tuple, List, Dict
 
+
 class Document:
     """The Document class.
         Attributes: text - the text of the document
@@ -50,8 +51,18 @@ class TFIDF_Engine:
             to counts) attributes, appends each document object to self.documents. Sets self.N to the number
             of documents that it read in. 
         """
-        # TODO
-        pass
+        file_list = os.listdir(self.corpus_location)
+        for file_name in file_list:
+            # Construct full file path
+            file_path = os.path.join(self.corpus_location, file_name)
+            document = Document()
+            # Open and read the file
+            with open(file_path, 'r', encoding='utf-8') as file:
+                document.text = file.read()
+            document.terms=self.tokenize(document.text)
+            self.documents.append(document)
+            self.N += 1
+
 
 
     def create_df_table(self):
@@ -61,8 +72,15 @@ class TFIDF_Engine:
             Creates self.term_vector_words which holds the order of words for the document
             vector, to be used later. Any order is fine, but once set, should not be changed.
         """
-        # TODO 
-        pass
+        for d in self.documents:
+            for t in d.terms:
+                if t not in self.df_table.keys():
+                    self.df_table[t]=1
+                    self.term_vector_words.append(t)
+                else:
+                    self.df_table[t]+=1
+
+
 
     def create_term_vector(self, d: Document):
         """Creates a term vector for document d, storing it in the 'term_vector' attribute
@@ -73,14 +91,26 @@ class TFIDF_Engine:
 
             Args: a document, d - this could be a document from the corpus or a document representing a query
         """
-        # TODO 
-        pass 
+
+        for t in self.term_vector_words:
+            if t in d.terms.keys():
+                tf=d.terms[t]
+                idf=math.log(self.N/self.df_table[t])
+                tfidf=(1+math.log(tf))*idf
+                d.term_vector.append(tfidf)
+            else:
+                tfidf = float(0)
+                d.term_vector.append(tfidf)
+        return d.term_vector
+
+
+
 
     def create_term_vectors(self):
         """Creates a term_vector for each document, utilizing self.create_term_vector.
         """
-        # TODO
-        pass
+        for document in self.documents:
+            self.create_term_vector(document)
 
     def calculate_cosine_sim(self, d1: Document, d2: Document) -> float:
         """Calculates the cosine simularity between two documents, the dot product of their
@@ -92,8 +122,14 @@ class TFIDF_Engine:
             Returns:
                 the dot product of the term vectors of the input documents
         """
-        # TODO
-        pass
+        d1_tv= d1.term_vector
+        d2_tv=d2.term_vector
+        dp = sum(a * b for a, b in zip(d1_tv, d2_tv))
+        magnitude_d1=math.sqrt(sum(x**2 for x in d1_tv))
+        magnitude_d2 = math.sqrt(sum(x ** 2 for x in d2_tv))
+        cos_sim = dp / (magnitude_d1 * magnitude_d2)
+        return cos_sim
+
 
     def get_results(self, query: str) -> List[Tuple[float, int]]:
         """Transforms the input query into a document (with text, terms and term_vector attributes).
@@ -105,8 +141,18 @@ class TFIDF_Engine:
             similarity score, that is, the highest similarity score adn corresponding index will be
             first in the list.
         """
-        # TODO 
-        pass
+        results=[]
+        q_doc=Document()
+        q_doc.text=query
+        q_doc.terms=self.tokenize(q_doc.text)
+        q_doc.term_vector=self.create_term_vector(q_doc)
+        for d in self.documents:
+            index=self.documents.index(d)
+            similarity=self.calculate_cosine_sim(q_doc, d)
+            results.append((similarity,index))
+        results_sorted=sorted(results, key=lambda x: x[0], reverse=True)
+        return results_sorted
+
                 
 
     def query_loop(self):
@@ -201,19 +247,23 @@ if __name__ == "__main__":
 
     assert len(t.documents[10].term_vector) == len(t.term_vector_words), "create_term_vectors test"
 
+
+
     #tests for calculate_cosine_sim
     assert t.calculate_cosine_sim(t.documents[0], t.documents[1]) > 0, "calculate_cosine_sim test 1"
     assert t.calculate_cosine_sim(t.documents[0], t.documents[1]) < 1, "calculate_cosine_sim test 1"
     assert abs(t.calculate_cosine_sim(t.documents[0], t.documents[0]) - 1) < 0.01
 
-    
+
     #tests for get_results
-    # assert t.get_results("star wars")[0][1] == 111, "get_results test 1"
-    assert "Lucas announces new 'Star Wars' title" in t.documents[t.get_results("star wars")[0][1]].text, "get_results test 1"
-    # assert t.get_results("movie trek george lucas")[2][1] == 24, "get_results test 2"
-    assert "Stars of 'X-Men' film are hyped, happy, as comic heroes" in t.documents[t.get_results("movie trek george lucas")[2][1]].text 
+    assert t.get_results("star wars")[0][1] == 111, "get_results test 1"
+    #assert "Lucas announces new 'Star Wars' title" in t.documents[t.get_results("star wars")[0][1]].text, "get_results test 1"
+    assert t.get_results("movie trek george lucas")[2][1] == 24, "get_results test 2"
+    #assert "Stars of 'X-Men' film are hyped, happy, as comic heroes" in t.documents[t.get_results("movie trek george lucas")[2][1]].text
     assert len(t.get_results("star trek")) == len(t.documents), "get_results test 3"
 
-    # t.query_loop() #uncomment this line to try out the search engine
+    #t.query_loop() #uncomment this line to try out the search engine
 
-    
+
+
+
